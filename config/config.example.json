@@ -1,0 +1,15 @@
+{
+    "server": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "base_path": ""
+    },
+    "hooks": {
+        "storage_path": "data/hooks.json",
+        "flags_dir": "data/flags"
+    },
+    "log": {
+        "level": "info",
+        "format": "json"
+    }
+}
