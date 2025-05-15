@@ -50,6 +50,11 @@ func main() {
 	// Create hook service
 	hookService := service.NewHookService(hookRepo, cfg.Hooks.FlagsDir, log)
 
+	// Verify that admin token is set
+	if cfg.Server.AdminToken == "" {
+		log.Fatal("Admin token is not set", logger.Field{Key: "error", Value: "AdminToken is required for secure operation"})
+	}
+
 	// Create API handler
 	handler := api.NewHandler(hookService, log, cfg.Server.BasePath, cfg.Server.AdminToken)
 
