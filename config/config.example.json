@@ -1,0 +1,19 @@
+{
+    "server": {
+        "host": "127.0.0.1",
+        "port": 8099,
+        "base_path": "",
+        "admin_token": ""
+    },
+    "hooks": {
+        "storage_path": "data/hooks.json",
+        "flags_dir": "data/flags"
+    },
+    "log": {
+        "level": "info",
+        "format": "json",
+        "file_path": "logs/webhook-forge.log",
+        "max_size": 100,
+        "max_backups": 5
+    }
+}

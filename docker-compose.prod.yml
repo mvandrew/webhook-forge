@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  webhook-forge:
+    image: msav/webhook-forge:latest
+    container_name: ${CONTAINER_NAME:-webhook-forge}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    ports:
+      - "${HOST_PORT:-8099}:8099"
+    volumes:
+      - ${CONFIG_DIR:-./config}:/app/config
+      - ${DATA_DIR:-./data}:/app/data
+      - ${LOGS_DIR:-./logs}:/app/logs
+    environment:
+      - CONFIG_PATH=${CONFIG_PATH:-/app/config/config.json}
+      - SERVER_ADMIN_TOKEN=${ADMIN_TOKEN:-}
+    healthcheck:
+      test: [ "CMD", "PORT=${SERVER_PORT:-8099}; BASE_PATH=${SERVER_BASE_PATH:-\"\"}; PATH_PREFIX=\"\"; if [ -n \"$BASE_PATH\" ]; then PATH_PREFIX=\"/$BASE_PATH\"; fi; curl -f \"http://localhost:${PORT}${PATH_PREFIX}/health\" || exit 1" ]
+      interval: ${HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${HEALTHCHECK_RETRIES:-3}
+      start_period: ${HEALTHCHECK_START_PERIOD:-15s}
+    networks:
+      - webhook-network
+
+networks:
+  webhook-network:
+    driver: bridge
