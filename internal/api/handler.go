@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"webhook-forge/internal/domain"
@@ -13,27 +14,47 @@ import (
 type Handler struct {
 	hookService domain.HookService
 	logger      logger.Logger
+	basePath    string
 }
 
 // NewHandler creates a new handler
-func NewHandler(hookService domain.HookService, logger logger.Logger) *Handler {
+func NewHandler(hookService domain.HookService, logger logger.Logger, basePath string) *Handler {
+	// Normalize base path: ensure it starts with '/' and doesn't end with '/'
+	if basePath != "" {
+		if !strings.HasPrefix(basePath, "/") {
+			basePath = "/" + basePath
+		}
+		basePath = strings.TrimSuffix(basePath, "/")
+	}
+
 	return &Handler{
 		hookService: hookService,
 		logger:      logger,
+		basePath:    basePath,
 	}
 }
 
 // RegisterRoutes registers the API routes
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
+	// API routes with base path prefix
+	apiPath := h.basePath + "/api"
+	webhookPath := h.basePath + "/webhook"
+
+	// Ensure paths are properly formatted
+	apiPath = strings.TrimSuffix(apiPath, "/")
+	webhookPath = strings.TrimSuffix(webhookPath, "/")
+
 	// API routes
-	mux.HandleFunc("GET /api/hooks", h.getHooks)
-	mux.HandleFunc("GET /api/hooks/{id}", h.getHook)
-	mux.HandleFunc("POST /api/hooks", h.createHook)
-	mux.HandleFunc("PUT /api/hooks/{id}", h.updateHook)
-	mux.HandleFunc("DELETE /api/hooks/{id}", h.deleteHook)
+	mux.HandleFunc("GET "+apiPath+"/hooks", h.getHooks)
+	mux.HandleFunc("GET "+apiPath+"/hooks/{id}", h.getHook)
+	mux.HandleFunc("POST "+apiPath+"/hooks", h.createHook)
+	mux.HandleFunc("PUT "+apiPath+"/hooks/{id}", h.updateHook)
+	mux.HandleFunc("DELETE "+apiPath+"/hooks/{id}", h.deleteHook)
 
 	// Webhook route
-	mux.HandleFunc("POST /webhook/{id}", h.triggerHook)
+	mux.HandleFunc("POST "+webhookPath+"/{id}", h.triggerHook)
+
+	h.logger.Info("Registered routes with base path", logger.Field{Key: "base_path", Value: h.basePath})
 }
 
 // respondJSON sends a JSON response

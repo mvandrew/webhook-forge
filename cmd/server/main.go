@@ -51,7 +51,7 @@ func main() {
 	hookService := service.NewHookService(hookRepo, cfg.Hooks.FlagsDir, log)
 
 	// Create API handler
-	handler := api.NewHandler(hookService, log)
+	handler := api.NewHandler(hookService, log, cfg.Server.BasePath)
 
 	// Create HTTP server
 	mux := http.NewServeMux()
@@ -68,7 +68,7 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Info("Starting HTTP server", logger.Field{Key: "address", Value: addr})
+		log.Info("Starting HTTP server", logger.Field{Key: "address", Value: addr}, logger.Field{Key: "base_path", Value: cfg.Server.BasePath})
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("HTTP server error", logger.Field{Key: "error", Value: err.Error()})
 		}
