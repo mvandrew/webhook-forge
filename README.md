@@ -177,13 +177,26 @@ The tool will generate a new random token and ask for your confirmation before s
 
 #### Webhook Management
 
-- `GET /api/hooks` - get a list of all webhooks
-- `GET /api/hooks/{id}` - get information about a specific webhook
-- `POST /api/hooks` - create a new webhook
-- `PUT /api/hooks/{id}` - update an existing webhook
-- `DELETE /api/hooks/{id}` - delete a webhook
+- `GET /api/hooks` - get a list of all webhooks (requires admin token)
+- `GET /api/hooks/{id}` - get information about a specific webhook (requires admin token)
+- `POST /api/hooks` - create a new webhook (requires admin token)
+- `PUT /api/hooks/{id}` - update an existing webhook (requires admin token)
+- `DELETE /api/hooks/{id}` - delete a webhook (requires admin token)
 
 Note: If you've configured `base_path`, prepend it to these endpoints (e.g., `/hooks/api/hooks`).
+
+#### Example of Getting All Webhooks
+
+```bash
+curl -X GET http://localhost:8080/api/hooks \
+  -H "Authorization: Bearer admin-token"
+```
+
+For a server with `base_path` set to `/hooks`:
+```bash
+curl -X GET http://localhost:8080/hooks/api/hooks \
+  -H "Authorization: Bearer admin-token"
+```
 
 #### Example of Creating a Webhook
 
@@ -191,7 +204,7 @@ For a server running at the root:
 ```bash
 curl -X POST http://localhost:8080/api/hooks \
   -H "Content-Type: application/json" \
-  -H "X-Admin-Token: admin-token" \
+  -H "Authorization: Bearer admin-token" \
   -d '{
     "id": "my-webhook",
     "name": "My Webhook",
@@ -206,7 +219,7 @@ For a server with `base_path` set to `/hooks`:
 ```bash
 curl -X POST http://localhost:8080/hooks/api/hooks \
   -H "Content-Type: application/json" \
-  -H "X-Admin-Token: admin-token" \
+  -H "Authorization: Bearer admin-token" \
   -d '{
     "id": "my-webhook",
     "name": "My Webhook",
@@ -237,14 +250,14 @@ The response will contain the created webhook, including the generated token if 
 
 #### Admin Token Authentication
 
-All management endpoints (`POST`, `PUT`, `DELETE`) require the `X-Admin-Token` header for authentication. The token must match the value defined in the server configuration.
+All API endpoints (`GET`, `POST`, `PUT`, `DELETE`) require the `Authorization: Bearer <token>` header for authentication. The token must match the value defined in the server configuration.
 
 If the token is missing or invalid, the API will return a `403 Forbidden` response:
 
 ```json
 {
   "success": false,
-  "errors": ["Admin token required"]
+  "errors": ["Admin authentication required"]
 }
 ```
 
