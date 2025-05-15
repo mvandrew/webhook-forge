@@ -1,70 +1,98 @@
 # Webhook Forge
 
-A minimalist, configurable webhook receiver service written in Go that creates flag files on your server when triggered.
-
-## Overview
-
-Webhook Forge is a lightweight, versatile webhook receiver designed to bridge webhook events with local file system actions. When properly configured webhooks are triggered, the service creates predefined flag files at specified locations on your server, which can then be monitored by other applications or scripts.
+Webhook Forge is a lightweight server for receiving webhook requests and creating flag files upon successful processing.
 
 ## Features
 
-- **Universal webhook receiver**: Handle incoming webhook requests from any service or application
-- **Multiple webhook configuration**: Configure and manage different webhooks within a single service
-- **Token-based security**: Each webhook is protected with a unique token to prevent unauthorized access
-- **Customizable flag files**: Specify the path and filename for each webhook's flag file
-- **Lightweight HTTP service**: Runs as a local HTTP service on a configurable port
+- Simple API for creating and managing webhooks
+- Secure token verification for authorizing calls
+- Creation of flag files upon successful webhook invocation
+- Easy configuration via JSON file
+- Structured logging
 
-## How It Works
+## Installation
 
-1. Configure your webhooks with unique names, security tokens, and flag file paths
-2. Start the Webhook Forge service on your server
-3. When a webhook is triggered with the correct token, a flag file is created at the specified location
-4. Other applications or scripts can monitor these flag files to trigger subsequent actions
+```bash
+git clone https://github.com/yourusername/webhook-forge.git
+cd webhook-forge
+go build -o webhook-forge ./cmd/server
+```
 
-## Use Cases
+## Configuration
 
-- Trigger local scripts or processes from remote services
-- Bridge cloud services with local infrastructure
-- Create simple automation workflows between systems
-- Implement lightweight continuous integration/deployment triggers
+The configuration file is automatically created on first run in the `config/config.json` directory. You can modify the following parameters:
 
-## Getting Started
+```json
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080
+  },
+  "hooks": {
+    "storage_path": "data/hooks.json",
+    "flags_dir": "data/flags"
+  },
+  "log": {
+    "level": "info",
+    "format": "json"
+  }
+}
+```
 
-_Coming soon: Installation and configuration instructions_
+## Usage
+
+### Starting the Server
+
+```bash
+./webhook-forge
+```
+
+### API Endpoints
+
+#### Webhook Management
+
+- `GET /api/hooks` - get a list of all webhooks
+- `GET /api/hooks/{id}` - get information about a specific webhook
+- `POST /api/hooks` - create a new webhook
+- `PUT /api/hooks/{id}` - update an existing webhook
+- `DELETE /api/hooks/{id}` - delete a webhook
+
+#### Example of Creating a Webhook
+
+```bash
+curl -X POST http://localhost:8080/api/hooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-webhook",
+    "name": "My Webhook",
+    "description": "Webhook for my project",
+    "token": "your-secret-token",
+    "flag_file": "my-project/flag.txt",
+    "enabled": true
+  }'
+```
+
+#### Invoking a Webhook
+
+```bash
+curl -X POST "http://localhost:8080/webhook/my-webhook?token=your-secret-token"
+```
+
+After a successful invocation, the file will be created in the `data/flags/my-project/flag.txt` directory.
 
 ## Project Structure
 
-The project follows a clean architecture approach with clear separation of concerns:
+The project is organized according to clean architecture principles:
 
-```
-webhook-forge/
-├── cmd/                  # Application entry points
-│   └── server/           # Main server application
-├── config/               # Configuration files and templates
-├── docs/                 # Documentation files
-├── internal/             # Private application code
-│   ├── api/              # API route definitions and input/output models
-│   ├── config/           # Configuration loading and parsing
-│   ├── handler/          # HTTP handlers for webhooks
-│   ├── middleware/       # HTTP middleware components
-│   ├── model/            # Domain models and entities
-│   ├── service/          # Business logic implementation
-│   └── storage/          # Data storage and retrieval
-├── pkg/                  # Public libraries that can be used by external applications
-│   ├── flag/             # Flag file creation utilities
-│   ├── logger/           # Logging utilities
-│   └── validator/        # Request validation utilities
-├── scripts/              # Utility scripts for development, CI/CD, etc.
-├── test/                 # Test related files
-│   ├── integration/      # Integration tests
-│   ├── mock/             # Mock implementations for testing
-│   └── unit/             # Unit tests
-├── .dockerignore         # Files to exclude from Docker build
-├── .gitattributes        # Git attributes file
-├── .gitignore            # Git ignore file
-├── Dockerfile            # Docker build instructions
-├── go.mod                # Go module definition
-├── LICENSE               # License file
-├── Makefile              # Make targets for common tasks
-└── README.md             # Project documentation
-```
+- `cmd/server` - application entry point
+- `internal/api` - HTTP handlers
+- `internal/config` - application configuration
+- `internal/domain` - data models and interfaces
+- `internal/service` - business logic
+- `internal/storage` - data storage
+- `pkg/logger` - logging
+- `pkg/validator` - data validation
+
+## License
+
+GNU General Public License v3.0
