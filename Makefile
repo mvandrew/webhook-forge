@@ -1,4 +1,4 @@
-.PHONY: build build-server build-admin-token run-server run-admin-token clean help docker-build docker-run docker-run-local docker-stop docker-push
+.PHONY: build build-server build-admin-token run-server run-admin-token clean help docker-build docker-run docker-run-local docker-stop docker-push docker-compose-prod-up docker-compose-prod-down docker-compose-prod-pull
 
 # Binary names
 SERVER_BIN=webhook-forge
@@ -77,6 +77,16 @@ docker-stop:
 docker-push:
 	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
 
+# Docker Compose Production targets
+docker-compose-prod-up:
+	docker-compose -f docker-compose.prod.yml up -d
+
+docker-compose-prod-down:
+	docker-compose -f docker-compose.prod.yml down
+
+docker-compose-prod-pull:
+	docker-compose -f docker-compose.prod.yml pull
+
 # Help target
 help:
 	@echo "Available targets:"
@@ -92,4 +102,7 @@ help:
 	@echo "  docker-run-local - Run Docker container restricted to localhost"
 	@echo "  docker-stop     - Stop running Docker container"
 	@echo "  docker-push     - Push Docker image to Docker Hub"
+	@echo "  docker-compose-prod-up - Start containers with docker-compose in production mode"
+	@echo "  docker-compose-prod-down - Stop and remove containers started with docker-compose"
+	@echo "  docker-compose-prod-pull - Pull latest images for docker-compose services"
 	@echo "  help            - Show this help message"
