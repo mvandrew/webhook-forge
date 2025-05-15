@@ -36,32 +36,37 @@ func NewHandler(hookService domain.HookService, logger logger.Logger, basePath s
 	}
 }
 
-// RegisterRoutes registers the API routes
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	// API routes with base path prefix
-	apiPath := h.basePath + "/api"
-	webhookPath := h.basePath + "/webhook"
-
-	// Ensure paths are properly formatted
-	apiPath = strings.TrimSuffix(apiPath, "/")
-	webhookPath = strings.TrimSuffix(webhookPath, "/")
+// GetAPIRoutes returns the API routes handler
+func (h *Handler) GetAPIRoutes() http.Handler {
+	apiMux := http.NewServeMux()
 
 	// API routes
-	mux.HandleFunc("GET "+apiPath+"/hooks", h.getHooks)
-	mux.HandleFunc("GET "+apiPath+"/hooks/{id}", h.getHook)
-	mux.HandleFunc("POST "+apiPath+"/hooks", h.createHook)
-	mux.HandleFunc("PUT "+apiPath+"/hooks/{id}", h.updateHook)
-	mux.HandleFunc("DELETE "+apiPath+"/hooks/{id}", h.deleteHook)
+	apiMux.HandleFunc("GET /hooks", h.getHooks)
+	apiMux.HandleFunc("GET /hooks/{id}", h.getHook)
+	apiMux.HandleFunc("POST /hooks", h.createHook)
+	apiMux.HandleFunc("PUT /hooks/{id}", h.updateHook)
+	apiMux.HandleFunc("DELETE /hooks/{id}", h.deleteHook)
 
-	// Webhook route
-	mux.HandleFunc("POST "+webhookPath+"/{id}", h.triggerHook)
-
-	h.logger.Info("Registered routes with base path", logger.Field{Key: "base_path", Value: h.basePath})
+	return apiMux
 }
 
-// getClientIP extracts the client IP address from the request, taking into account various headers
-// that might be set by proxies or load balancers
+// GetWebhookRoutes returns the webhook routes handler
+func (h *Handler) GetWebhookRoutes() http.Handler {
+	webhookMux := http.NewServeMux()
+
+	// Webhook route
+	webhookMux.HandleFunc("POST /{id}", h.triggerHook)
+
+	return webhookMux
+}
+
+// getClientIP extracts the client IP address from the request
+// Note: This is a temporary solution until we fully refactor the API handlers
+// to use the middleware package for IP extraction
 func (h *Handler) getClientIP(r *http.Request) string {
+	// This implementation is now duplicated in middleware/logger.go
+	// We'll keep it here temporarily for backward compatibility
+
 	// Check X-Forwarded-For header first (common for proxies)
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		// X-Forwarded-For can contain multiple IPs (client, proxy1, proxy2, ...), take the first one
@@ -106,8 +111,10 @@ func (h *Handler) respondError(w http.ResponseWriter, status int, message string
 	h.respondJSON(w, status, domain.NewErrorResponse(message))
 }
 
-// verifyAdminToken checks if the request has a valid admin token
+// verifyAdminToken is deprecated and will be removed
+// Auth is now handled through middleware
 func (h *Handler) verifyAdminToken(r *http.Request) bool {
+	// This is kept temporarily for backward compatibility
 	// Get Authorization header
 	authHeader := r.Header.Get("Authorization")
 
@@ -131,14 +138,7 @@ func (h *Handler) verifyAdminToken(r *http.Request) bool {
 func (h *Handler) getHooks(w http.ResponseWriter, r *http.Request) {
 	clientIP := h.getClientIP(r)
 
-	// Check admin token
-	if !h.verifyAdminToken(r) {
-		h.logger.Warn("Invalid or missing admin token",
-			logger.Field{Key: "ip", Value: clientIP},
-			logger.Field{Key: "path", Value: r.URL.Path})
-		h.respondError(w, http.StatusForbidden, "Admin authentication required")
-		return
-	}
+	// Authentication is handled by middleware
 
 	hooks, err := h.hookService.GetAllHooks()
 	if err != nil {
@@ -159,14 +159,7 @@ func (h *Handler) getHooks(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getHook(w http.ResponseWriter, r *http.Request) {
 	clientIP := h.getClientIP(r)
 
-	// Check admin token
-	if !h.verifyAdminToken(r) {
-		h.logger.Warn("Invalid or missing admin token",
-			logger.Field{Key: "ip", Value: clientIP},
-			logger.Field{Key: "path", Value: r.URL.Path})
-		h.respondError(w, http.StatusForbidden, "Admin authentication required")
-		return
-	}
+	// Authentication is handled by middleware
 
 	id := r.PathValue("id")
 	if id == "" {
@@ -204,14 +197,7 @@ func (h *Handler) getHook(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createHook(w http.ResponseWriter, r *http.Request) {
 	clientIP := h.getClientIP(r)
 
-	// Check admin token
-	if !h.verifyAdminToken(r) {
-		h.logger.Warn("Invalid or missing admin token",
-			logger.Field{Key: "ip", Value: clientIP},
-			logger.Field{Key: "path", Value: r.URL.Path})
-		h.respondError(w, http.StatusForbidden, "Admin authentication required")
-		return
-	}
+	// Authentication is handled by middleware
 
 	var hook domain.Hook
 	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
@@ -252,14 +238,7 @@ func (h *Handler) createHook(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) updateHook(w http.ResponseWriter, r *http.Request) {
 	clientIP := h.getClientIP(r)
 
-	// Check admin token
-	if !h.verifyAdminToken(r) {
-		h.logger.Warn("Invalid or missing admin token",
-			logger.Field{Key: "ip", Value: clientIP},
-			logger.Field{Key: "path", Value: r.URL.Path})
-		h.respondError(w, http.StatusForbidden, "Admin authentication required")
-		return
-	}
+	// Authentication is handled by middleware
 
 	id := r.PathValue("id")
 	if id == "" {
@@ -312,14 +291,7 @@ func (h *Handler) updateHook(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) deleteHook(w http.ResponseWriter, r *http.Request) {
 	clientIP := h.getClientIP(r)
 
-	// Check admin token
-	if !h.verifyAdminToken(r) {
-		h.logger.Warn("Invalid or missing admin token",
-			logger.Field{Key: "ip", Value: clientIP},
-			logger.Field{Key: "path", Value: r.URL.Path})
-		h.respondError(w, http.StatusForbidden, "Admin authentication required")
-		return
-	}
+	// Authentication is handled by middleware
 
 	id := r.PathValue("id")
 	if id == "" {
@@ -356,6 +328,7 @@ func (h *Handler) deleteHook(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) triggerHook(w http.ResponseWriter, r *http.Request) {
 	clientIP := h.getClientIP(r)
 
+	// Authentication and ID extraction are handled by middleware
 	id := r.PathValue("id")
 	if id == "" {
 		h.logger.Warn("Missing hook ID in webhook request",
@@ -365,18 +338,13 @@ func (h *Handler) triggerHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get token from query parameter
+	// Get token from query parameter - already validated by middleware
 	token := r.URL.Query().Get("token")
-	if token == "" {
-		h.logger.Warn("Missing token parameter in webhook request",
-			logger.Field{Key: "ip", Value: clientIP},
-			logger.Field{Key: "id", Value: id})
-		h.respondError(w, http.StatusBadRequest, "Missing token parameter")
-		return
-	}
 
-	// Trigger hook
+	// Trigger hook - token validation already done by middleware
 	if err := h.hookService.TriggerHook(id, token, clientIP); err != nil {
+		// These errors should not occur as they're handled by middleware
+		// but we keep them for robustness
 		if err == domain.ErrHookNotFound {
 			h.logger.Warn("Hook not found in webhook request",
 				logger.Field{Key: "ip", Value: clientIP},

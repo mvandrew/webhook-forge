@@ -7,11 +7,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"webhook-forge/internal/api"
 	"webhook-forge/internal/config"
+	"webhook-forge/internal/domain"
 	"webhook-forge/internal/middleware"
 	"webhook-forge/internal/service"
 	"webhook-forge/internal/storage"
@@ -75,13 +77,41 @@ func main() {
 
 	// Create HTTP server
 	mux := http.NewServeMux()
-	handler.RegisterRoutes(mux)
 
-	// Create logging middleware
+	// Create middlewares
 	requestLogger := middleware.NewRequestLogger(log)
+	adminAuth := middleware.NewAdminAuth(log, cfg.Server.AdminToken)
+	webhookAuth := middleware.NewWebhookAuth(log, hookService)
 
-	// Apply middlewares to the handler in the correct order
-	// Request logger middleware should be applied first to log all requests
+	log.Info("Initialized authentication middlewares")
+
+	// Set up API routes with admin authentication
+	apiRoutes := handler.GetAPIRoutes()
+	apiRoutesWithAuth := adminAuth.Middleware(apiRoutes)
+
+	// Set up webhook routes with webhook authentication
+	webhookRoutes := handler.GetWebhookRoutes()
+	webhookRoutesWithAuth := webhookAuth.Middleware(webhookRoutes)
+
+	// Configure routes with proper base paths
+	apiPath := cfg.Server.BasePath + "/api"
+	webhookPath := cfg.Server.BasePath + "/webhook"
+
+	// Ensure paths are properly formatted
+	if apiPath != "" && !strings.HasPrefix(apiPath, "/") {
+		apiPath = "/" + apiPath
+	}
+	if webhookPath != "" && !strings.HasPrefix(webhookPath, "/") {
+		webhookPath = "/" + webhookPath
+	}
+	apiPath = strings.TrimSuffix(apiPath, "/")
+	webhookPath = strings.TrimSuffix(webhookPath, "/")
+
+	// Register routes with authentication middleware applied
+	mux.Handle(apiPath+"/", http.StripPrefix(apiPath, apiRoutesWithAuth))
+	mux.Handle(webhookPath+"/", http.StripPrefix(webhookPath, webhookRoutesWithAuth))
+
+	// Apply request logging middleware to all requests
 	middlewareChain := requestLogger.Middleware(mux)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"webhook-forge/internal/domain"
 	"webhook-forge/pkg/logger"
 )
 
@@ -47,7 +48,7 @@ func (rw *responseWriter) Size() int {
 }
 
 // NewRequestLogger creates a new request logger middleware
-func NewRequestLogger(logger logger.Logger) *RequestLogger {
+func NewRequestLogger(logger logger.Logger) domain.Middleware {
 	return &RequestLogger{
 		logger: logger,
 	}
