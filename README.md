@@ -75,6 +75,44 @@ server {
 }
 ```
 
+### Enhanced Security with IP Restrictions
+
+For enhanced security, you can restrict access to webhook management endpoints based on IP addresses while keeping webhook invocation endpoints accessible from anywhere. This is particularly useful for production environments.
+
+#### Example Nginx Configuration with IP Restrictions
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+
+    # Allow webhook invocation from anywhere
+    location ~ ^/hooks/webhook/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Restrict webhook management API to specific IPs
+    location ~ ^/hooks/api/ {
+        # Allow only specific IP addresses
+        allow 192.168.1.100;      # Admin workstation
+        allow 10.0.0.0/24;        # Internal network
+        deny all;                 # Deny everyone else
+        
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+This configuration restricts access to the webhook management API (`/hooks/api/*`) to specific IP addresses, while allowing webhook invocation endpoints (`/hooks/webhook/*`) to be accessible from anywhere. This provides an additional layer of security by ensuring that only authorized systems can create, modify, or delete webhooks.
+
 ### API Response Format
 
 All API responses follow a consistent format:
