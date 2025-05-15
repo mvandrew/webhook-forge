@@ -121,7 +121,7 @@ func (s *HookService) ValidateHookToken(id string, token string) error {
 }
 
 // TriggerHook triggers a hook
-func (s *HookService) TriggerHook(id string, token string) error {
+func (s *HookService) TriggerHook(id string, token string, clientIP string) error {
 	// Validate token
 	if err := s.ValidateHookToken(id, token); err != nil {
 		return err
@@ -134,17 +134,20 @@ func (s *HookService) TriggerHook(id string, token string) error {
 	}
 
 	// Create flag file
-	if err := s.createFlagFile(hook); err != nil {
+	if err := s.createFlagFile(hook, clientIP); err != nil {
 		s.logger.Error("Failed to create flag file",
 			logger.Field{Key: "id", Value: id},
 			logger.Field{Key: "flag_file", Value: hook.FlagFile},
+			logger.Field{Key: "ip", Value: clientIP},
 			logger.Field{Key: "error", Value: err.Error()})
 		return err
 	}
 
 	s.logger.Info("Hook triggered",
 		logger.Field{Key: "id", Value: id},
-		logger.Field{Key: "flag_file", Value: hook.FlagFile})
+		logger.Field{Key: "name", Value: hook.Name},
+		logger.Field{Key: "flag_file", Value: hook.FlagFile},
+		logger.Field{Key: "ip", Value: clientIP})
 	return nil
 }
 
@@ -196,7 +199,7 @@ func (s *HookService) validateHook(hook *domain.Hook) error {
 }
 
 // createFlagFile creates a flag file for a hook
-func (s *HookService) createFlagFile(hook *domain.Hook) error {
+func (s *HookService) createFlagFile(hook *domain.Hook, clientIP string) error {
 	// Validate flag file path
 	if filepath.IsAbs(hook.FlagFile) {
 		return fmt.Errorf("flag file path must be relative: %s", hook.FlagFile)
@@ -223,8 +226,8 @@ func (s *HookService) createFlagFile(hook *domain.Hook) error {
 	}
 	defer file.Close()
 
-	// Write timestamp to file
-	_, err = fmt.Fprintf(file, "Hook triggered at %s\n", time.Now().Format(time.RFC3339))
+	// Write timestamp and client IP to file
+	_, err = fmt.Fprintf(file, "Hook triggered at %s by client %s\n", time.Now().Format(time.RFC3339), clientIP)
 	if err != nil {
 		return fmt.Errorf("failed to write to flag file: %w", err)
 	}

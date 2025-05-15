@@ -12,6 +12,7 @@ import (
 
 	"webhook-forge/internal/api"
 	"webhook-forge/internal/config"
+	"webhook-forge/internal/middleware"
 	"webhook-forge/internal/service"
 	"webhook-forge/internal/storage"
 	"webhook-forge/pkg/logger"
@@ -76,10 +77,17 @@ func main() {
 	mux := http.NewServeMux()
 	handler.RegisterRoutes(mux)
 
+	// Create logging middleware
+	requestLogger := middleware.NewRequestLogger(log)
+
+	// Apply middlewares to the handler in the correct order
+	// Request logger middleware should be applied first to log all requests
+	middlewareChain := requestLogger.Middleware(mux)
+
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      mux,
+		Handler:      middlewareChain,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
