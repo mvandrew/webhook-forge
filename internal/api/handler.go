@@ -75,8 +75,36 @@ func (h *Handler) respondError(w http.ResponseWriter, status int, message string
 	h.respondJSON(w, status, domain.NewErrorResponse(message))
 }
 
+// verifyAdminToken checks if the request has a valid admin token
+func (h *Handler) verifyAdminToken(r *http.Request) bool {
+	// Get Authorization header
+	authHeader := r.Header.Get("Authorization")
+
+	// Check if the header exists and has the correct format
+	if authHeader == "" {
+		return false
+	}
+
+	// Expected format: "Bearer <token>"
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return false
+	}
+
+	// Check if the token is valid
+	token := parts[1]
+	return token == h.adminToken
+}
+
 // getHooks handles GET /api/hooks
 func (h *Handler) getHooks(w http.ResponseWriter, r *http.Request) {
+	// Check admin token
+	if !h.verifyAdminToken(r) {
+		h.logger.Warn("Invalid or missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin authentication required")
+		return
+	}
+
 	hooks, err := h.hookService.GetAllHooks()
 	if err != nil {
 		h.logger.Error("Failed to get hooks", logger.Field{Key: "error", Value: err.Error()})
@@ -89,6 +117,13 @@ func (h *Handler) getHooks(w http.ResponseWriter, r *http.Request) {
 
 // getHook handles GET /api/hooks/{id}
 func (h *Handler) getHook(w http.ResponseWriter, r *http.Request) {
+	// Check admin token
+	if !h.verifyAdminToken(r) {
+		h.logger.Warn("Invalid or missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin authentication required")
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
 		h.respondError(w, http.StatusBadRequest, "Missing hook ID")
@@ -112,16 +147,9 @@ func (h *Handler) getHook(w http.ResponseWriter, r *http.Request) {
 // createHook handles POST /api/hooks
 func (h *Handler) createHook(w http.ResponseWriter, r *http.Request) {
 	// Check admin token
-	adminToken := r.Header.Get("X-Admin-Token")
-	if adminToken == "" {
-		h.logger.Warn("Missing admin token")
-		h.respondError(w, http.StatusForbidden, "Admin token required")
-		return
-	}
-
-	if adminToken != h.adminToken {
-		h.logger.Warn("Invalid admin token")
-		h.respondError(w, http.StatusForbidden, "Invalid admin token")
+	if !h.verifyAdminToken(r) {
+		h.logger.Warn("Invalid or missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin authentication required")
 		return
 	}
 
@@ -153,16 +181,9 @@ func (h *Handler) createHook(w http.ResponseWriter, r *http.Request) {
 // updateHook handles PUT /api/hooks/{id}
 func (h *Handler) updateHook(w http.ResponseWriter, r *http.Request) {
 	// Check admin token
-	adminToken := r.Header.Get("X-Admin-Token")
-	if adminToken == "" {
-		h.logger.Warn("Missing admin token")
-		h.respondError(w, http.StatusForbidden, "Admin token required")
-		return
-	}
-
-	if adminToken != h.adminToken {
-		h.logger.Warn("Invalid admin token")
-		h.respondError(w, http.StatusForbidden, "Invalid admin token")
+	if !h.verifyAdminToken(r) {
+		h.logger.Warn("Invalid or missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin authentication required")
 		return
 	}
 
@@ -200,16 +221,9 @@ func (h *Handler) updateHook(w http.ResponseWriter, r *http.Request) {
 // deleteHook handles DELETE /api/hooks/{id}
 func (h *Handler) deleteHook(w http.ResponseWriter, r *http.Request) {
 	// Check admin token
-	adminToken := r.Header.Get("X-Admin-Token")
-	if adminToken == "" {
-		h.logger.Warn("Missing admin token")
-		h.respondError(w, http.StatusForbidden, "Admin token required")
-		return
-	}
-
-	if adminToken != h.adminToken {
-		h.logger.Warn("Invalid admin token")
-		h.respondError(w, http.StatusForbidden, "Invalid admin token")
+	if !h.verifyAdminToken(r) {
+		h.logger.Warn("Invalid or missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin authentication required")
 		return
 	}
 
