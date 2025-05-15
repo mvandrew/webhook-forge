@@ -1,4 +1,4 @@
-.PHONY: build build-server build-admin-token run-server run-admin-token clean help
+.PHONY: build build-server build-admin-token run-server run-admin-token clean help docker-build docker-run docker-run-local docker-stop docker-push
 
 # Binary names
 SERVER_BIN=webhook-forge
@@ -8,6 +8,10 @@ ADMIN_TOKEN_BIN=admin-token-generator
 CMD_SERVER=./cmd/server
 CMD_ADMIN_TOKEN=./cmd/admin_token_generator
 BIN_DIR=./bin
+
+# Docker settings
+DOCKER_IMAGE=msav/webhook-forge
+DOCKER_TAG=latest
 
 # Default target
 all: build
@@ -42,6 +46,37 @@ clean:
 $(BIN_DIR):
 	mkdir -p $(BIN_DIR)
 
+# Docker build
+docker-build:
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+
+# Docker run
+docker-run:
+	docker run -d --name webhook-forge -p 8099:8099 \
+		-v $(PWD)/config:/app/config \
+		-v $(PWD)/data:/app/data \
+		-v $(PWD)/logs:/app/logs \
+		-e CONFIG_PATH=/app/config/config.docker.json \
+		$(DOCKER_IMAGE):$(DOCKER_TAG)
+
+# Docker run local-only (restricted to localhost)
+docker-run-local:
+	docker run -d --name webhook-forge -p 127.0.0.1:8099:8099 \
+		-v $(PWD)/config:/app/config \
+		-v $(PWD)/data:/app/data \
+		-v $(PWD)/logs:/app/logs \
+		-e CONFIG_PATH=/app/config/config.docker.json \
+		$(DOCKER_IMAGE):$(DOCKER_TAG)
+
+# Docker stop
+docker-stop:
+	docker stop webhook-forge || true
+	docker rm webhook-forge || true
+
+# Docker push
+docker-push:
+	docker push $(DOCKER_IMAGE):$(DOCKER_TAG)
+
 # Help target
 help:
 	@echo "Available targets:"
@@ -52,4 +87,9 @@ help:
 	@echo "  run-admin-token - Build and run the admin token generator"
 	@echo "  token           - Shorthand for run-admin-token"
 	@echo "  clean           - Remove all build artifacts"
+	@echo "  docker-build    - Build Docker image"
+	@echo "  docker-run      - Run Docker container"
+	@echo "  docker-run-local - Run Docker container restricted to localhost"
+	@echo "  docker-stop     - Stop running Docker container"
+	@echo "  docker-push     - Push Docker image to Docker Hub"
 	@echo "  help            - Show this help message"
