@@ -2,6 +2,34 @@
 
 Webhook Forge is a lightweight server for receiving webhook requests and creating flag files upon successful processing.
 
+## Table of Contents
+- [Features](#features)
+- [Installation](#installation)
+  - [Building from Source](#building-from-source)
+  - [Using Makefile](#using-makefile)
+- [Configuration](#configuration)
+  - [Main Configuration](#main-configuration)
+  - [Logging Configuration](#logging-configuration)
+  - [Admin Token Generation](#admin-token-generation)
+  - [Reverse Proxy Configuration](#reverse-proxy-configuration)
+  - [Enhanced Security with IP Restrictions](#enhanced-security-with-ip-restrictions)
+- [API Endpoints](#api-endpoints)
+  - [Webhook Management](#webhook-management)
+  - [Webhook Invocation](#webhook-invocation)
+  - [Admin Token Authentication](#admin-token-authentication)
+  - [API Response Format](#api-response-format)
+- [Usage Examples](#usage-examples)
+  - [List All Webhooks](#list-all-webhooks)
+  - [Create a Webhook](#create-a-webhook)
+  - [Invoke a Webhook](#invoke-a-webhook)
+- [Deployment](#deployment)
+  - [Linux Service Setup](#linux-service-setup)
+  - [Using Service Scripts](#using-service-scripts)
+  - [Docker Deployment](#docker-deployment)
+  - [Docker Hub](#docker-hub)
+- [Project Structure](#project-structure)
+- [License](#license)
+
 ## Features
 
 - Simple API for creating and managing webhooks
@@ -13,19 +41,38 @@ Webhook Forge is a lightweight server for receiving webhook requests and creatin
 
 ## Installation
 
+### Building from Source
+
 ```bash
 git clone git@github.com:mvandrew/webhook-forge.git
 cd webhook-forge
 go build -o webhook-forge ./cmd/server
 ```
 
-Alternatively, you can use the provided Makefile:
+### Using Makefile
+
+The project includes a Makefile with various useful commands for building and running the application:
 
 ```bash
+# Build both server and admin token generator
 make build
+
+# Build only the server
+make build-server
+
+# Build only the admin token generator
+make build-admin-token
+
+# Run the server
+make run-server
+
+# Generate admin token
+make token
 ```
 
 ## Configuration
+
+### Main Configuration
 
 The configuration file is automatically created on first run in the `config/config.json` directory. You can modify the following parameters:
 
@@ -50,6 +97,14 @@ The configuration file is automatically created on first run in the `config/conf
   }
 }
 ```
+
+To set up the application, create your own configuration file based on the example:
+
+```bash
+cp config/config.example.json config/config.json
+```
+
+Then edit the `config/config.json` file according to your requirements. The example configuration file is tracked in git, while your local configuration file is ignored.
 
 ### Logging Configuration
 
@@ -142,7 +197,25 @@ server {
 }
 ```
 
-This configuration restricts access to the webhook management API (`/hooks/api/*`) to specific IP addresses, while allowing webhook invocation endpoints (`/hooks/webhook/*`) to be accessible from anywhere. This provides an additional layer of security by ensuring that only authorized systems can create, modify, or delete webhooks.
+## API Endpoints
+
+### Webhook Management
+
+- `GET /api/hooks` - List all webhooks (requires admin token)
+- `GET /api/hooks/{id}` - Get information about a specific webhook (requires admin token)
+- `POST /api/hooks` - Create a new webhook (requires admin token)
+- `PUT /api/hooks/{id}` - Update an existing webhook (requires admin token)
+- `DELETE /api/hooks/{id}` - Delete a webhook (requires admin token)
+
+Note: If you've configured `base_path`, prepend it to these endpoints (e.g., `/hooks/api/hooks`).
+
+### Webhook Invocation
+
+- `POST /webhook/{id}?token=your-secret-token` - Trigger a webhook, creating the configured flag file
+
+### Admin Token Authentication
+
+All API endpoints (`GET`, `POST`, `PUT`, `DELETE`) require the `Authorization: Bearer <token>` header for authentication. The token must match the value defined in the server configuration.
 
 ### API Response Format
 
@@ -158,64 +231,17 @@ All API responses follow a consistent format:
 
 When an operation is successful, the `success` field is `true` and the `data` field contains the result. When an error occurs, `success` is `false` and the `errors` field contains error messages.
 
-## Usage
+## Usage Examples
 
-### Starting the Server
-
-```bash
-./webhook-forge
-```
-
-Or using the Makefile:
-
-```bash
-make run-server
-```
-
-### Generating Admin Token
-
-To generate a secure admin token for your webhook-forge server:
-
-```bash
-./bin/admin-token-generator
-```
-
-Or using the Makefile:
-
-```bash
-make token
-```
-
-The tool will generate a new random token and ask for your confirmation before saving it to the configuration file.
-
-### API Endpoints
-
-#### Webhook Management
-
-- `GET /api/hooks` - get a list of all webhooks (requires admin token)
-- `GET /api/hooks/{id}` - get information about a specific webhook (requires admin token)
-- `POST /api/hooks` - create a new webhook (requires admin token)
-- `PUT /api/hooks/{id}` - update an existing webhook (requires admin token)
-- `DELETE /api/hooks/{id}` - delete a webhook (requires admin token)
-
-Note: If you've configured `base_path`, prepend it to these endpoints (e.g., `/hooks/api/hooks`).
-
-#### Example of Getting All Webhooks
+### List All Webhooks
 
 ```bash
 curl -X GET http://localhost:8080/api/hooks \
   -H "Authorization: Bearer admin-token"
 ```
 
-For a server with `base_path` set to `/hooks`:
-```bash
-curl -X GET http://localhost:8080/hooks/api/hooks \
-  -H "Authorization: Bearer admin-token"
-```
+### Create a Webhook
 
-#### Example of Creating a Webhook
-
-For a server running at the root:
 ```bash
 curl -X POST http://localhost:8080/api/hooks \
   -H "Content-Type: application/json" \
@@ -224,100 +250,229 @@ curl -X POST http://localhost:8080/api/hooks \
     "id": "my-webhook",
     "name": "My Webhook",
     "description": "Webhook for my project",
-    "token": "your-secret-token",  # Optional, will be generated automatically if not provided
-    "flag_file": "my-project/flag.txt",
-    "enabled": true
-  }'
-```
-
-For a server with `base_path` set to `/hooks`:
-```bash
-curl -X POST http://localhost:8080/hooks/api/hooks \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer admin-token" \
-  -d '{
-    "id": "my-webhook",
-    "name": "My Webhook",
-    "description": "Webhook for my project",
-    "token": "your-secret-token",  # Optional, will be generated automatically if not provided
-    "flag_file": "my-project/flag.txt",
-    "enabled": true
-  }'
-```
-
-The response will contain the created webhook, including the generated token if one wasn't provided:
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "my-webhook",
-    "name": "My Webhook",
-    "description": "Webhook for my project",
     "token": "your-secret-token",
     "flag_file": "my-project/flag.txt",
-    "enabled": true,
-    "created_at": "2023-04-18T12:34:56Z",
-    "updated_at": "2023-04-18T12:34:56Z"
-  }
-}
+    "enabled": true
+  }'
 ```
 
-#### Admin Token Authentication
+Note: The `token` field is optional. If not provided, a secure token will be automatically generated.
 
-All API endpoints (`GET`, `POST`, `PUT`, `DELETE`) require the `Authorization: Bearer <token>` header for authentication. The token must match the value defined in the server configuration.
+### Invoke a Webhook
 
-If the token is missing or invalid, the API will return a `403 Forbidden` response:
-
-```json
-{
-  "success": false,
-  "errors": ["Admin authentication required"]
-}
-```
-
-#### Automatic Token Generation
-
-When creating a new webhook, if you don't specify a token, the system will automatically generate a secure token for you. This generated token will be returned in the response. Make sure to save it, as it will be needed to trigger the webhook.
-
-#### Invoking a Webhook
-
-For a server running at the root:
 ```bash
 curl -X POST "http://localhost:8080/webhook/my-webhook?token=your-secret-token"
 ```
 
-For a server with `base_path` set to `/hooks`:
-```bash
-curl -X POST "http://localhost:8080/hooks/webhook/my-webhook?token=your-secret-token"
+After a successful invocation, the file will be created in the `data/flags/my-project/flag.txt` directory.
+
+## Deployment
+
+### Linux Service Setup
+
+You can run webhook-forge as a system service on Linux using systemd. Create a service file at `/etc/systemd/system/webhook-forge.service`:
+
+```ini
+[Unit]
+Description=Webhook Forge Service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=youruser
+WorkingDirectory=/path/to/webhook-forge
+ExecStart=/path/to/webhook-forge/bin/webhook-forge
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-After a successful invocation, the file will be created in the `data/flags/my-project/flag.txt` directory.
+Replace `youruser` with the appropriate user and adjust the paths accordingly.
+
+Enable and start the service:
+
+```bash
+sudo systemctl enable webhook-forge
+sudo systemctl start webhook-forge
+```
+
+Check service status:
+
+```bash
+sudo systemctl status webhook-forge
+```
+
+View logs:
+
+```bash
+sudo journalctl -u webhook-forge
+```
+
+### Using Service Scripts
+
+The project includes several scripts in the `scripts/` directory to simplify service installation and management.
+
+#### Standard Service Installation
+
+To install Webhook Forge as a systemd service:
+
+```bash
+sudo ./scripts/install-service.sh
+```
+
+This script supports the following command-line options:
+- `-h, --help`: Show help message
+- `-n, --name NAME`: Name of the service (default: "webhook-forge")
+- `-u, --user USER`: User to run the service as (default: current user)
+- `-d, --dir DIRECTORY`: Installation directory (default: current directory)
+- `-c, --config PATH`: Path to config file (default: "INSTALL_DIR/config/config.json")
+- `-e, --executable PATH`: Path to executable (default: "INSTALL_DIR/bin/server")
+
+Example with custom settings:
+
+```bash
+sudo ./scripts/install-service.sh --name my-webhook --user webuser --executable /opt/webhook-forge/bin/webhook-forge
+```
+
+To uninstall the service:
+
+```bash
+sudo ./scripts/uninstall-service.sh
+```
+
+For custom service name, use the `--name` option:
+
+```bash
+sudo ./scripts/uninstall-service.sh --name my-webhook
+```
+
+#### Docker Service Installation
+
+To install Webhook Forge as a Docker service managed by systemd:
+
+```bash
+sudo ./scripts/install-docker-service.sh
+```
+
+This script supports the following command-line options:
+- `-h, --help`: Show help message
+- `-n, --name NAME`: Name of the service (default: "webhook-forge-docker")
+- `-d, --dir DIRECTORY`: Installation directory (default: current directory) 
+- `-f, --file FILE`: Path to docker-compose file (default: "INSTALL_DIR/docker-compose.prod.yml")
+- `-u, --user USER`: User to run the service as (default: current user)
+
+Example with custom settings:
+
+```bash
+sudo ./scripts/install-docker-service.sh --name my-webhook-docker --file /opt/webhook-forge/docker-compose.yml
+```
+
+To uninstall the Docker service:
+
+```bash
+sudo ./scripts/uninstall-docker-service.sh
+```
+
+For custom service name, use the `--name` option:
+
+```bash
+sudo ./scripts/uninstall-docker-service.sh --name my-webhook-docker
+```
+
+### Docker Deployment
+
+#### Using Docker
+
+Build the Docker image:
+
+```bash
+make docker-build
+```
+
+Run the container:
+
+```bash
+make docker-run
+```
+
+Or for local-only access:
+
+```bash
+make docker-run-local
+```
+
+Stop the container:
+
+```bash
+make docker-stop
+```
+
+#### Using Docker Compose
+
+Create a `docker-compose.yml` file:
+
+```yaml
+version: '3'
+services:
+  webhook-forge:
+    image: msav/webhook-forge:latest
+    container_name: webhook-forge
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+```
+
+Start the service:
+
+```bash
+docker-compose up -d
+```
+
+For production deployment with the provided production configuration:
+
+```bash
+make docker-compose-prod-up
+```
+
+To stop the service:
+
+```bash
+make docker-compose-prod-down
+```
+
+#### Docker Hub
+
+The webhook-forge Docker image is available on Docker Hub:
+[https://hub.docker.com/r/msav/webhook-forge](https://hub.docker.com/r/msav/webhook-forge)
+
+Pull the latest image:
+
+```bash
+docker pull msav/webhook-forge:latest
+```
 
 ## Project Structure
 
 The project is organized according to clean architecture principles:
 
-- `cmd/server` - application entry point
-- `cmd/admin_token_generator` - utility for generating admin tokens
+- `cmd/server` - Application entry point
+- `cmd/admin_token_generator` - Utility for generating admin tokens
 - `internal/api` - HTTP handlers
-- `internal/config` - application configuration
-- `internal/domain` - data models and interfaces
-- `internal/service` - business logic
-- `internal/storage` - data storage
-- `pkg/logger` - logging
-- `pkg/validator` - data validation
+- `internal/config` - Application configuration
+- `internal/domain` - Data models and interfaces
+- `internal/service` - Business logic
+- `internal/storage` - Data storage
+- `pkg/logger` - Logging
+- `pkg/validator` - Data validation
+- `scripts` - Service installation and management scripts
 
 ## License
 
 GNU General Public License v3.0
-
-## Configuration Example
-
-To set up the application, create your own configuration file based on the example:
-
-```bash
-cp config/config.example.json config/config.json
-```
-
-Then edit the `config/config.json` file according to your requirements. The example configuration file is tracked in git, while your local configuration file is ignored.
