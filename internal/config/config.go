@@ -16,9 +16,10 @@ type Config struct {
 
 // ServerConfig contains HTTP server configuration
 type ServerConfig struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	BasePath string `json:"base_path"` // Base path for all routes, e.g. "/hooks" when proxied behind nginx
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	BasePath   string `json:"base_path"`   // Base path for all routes, e.g. "/hooks" when proxied behind nginx
+	AdminToken string `json:"admin_token"` // Admin token for managing hooks
 }
 
 // HooksConfig contains webhook configuration
@@ -38,9 +39,10 @@ func LoadConfig(path string) (*Config, error) {
 	// Default configuration
 	cfg := &Config{
 		Server: ServerConfig{
-			Host:     "127.0.0.1",
-			Port:     8080,
-			BasePath: "", // Empty string means no base path (server at root)
+			Host:       "127.0.0.1",
+			Port:       8080,
+			BasePath:   "",            // Empty string means no base path (server at root)
+			AdminToken: "admin-token", // Default admin token, should be changed in production
 		},
 		Hooks: HooksConfig{
 			StoragePath: "data/hooks.json",
