@@ -8,7 +8,7 @@ Webhook Forge is a lightweight server for receiving webhook requests and creatin
 - Secure token verification for authorizing calls
 - Creation of flag files upon successful webhook invocation
 - Easy configuration via JSON file
-- Structured logging
+- Structured logging with file output and rotation
 - Support for deployment behind a reverse proxy in a subdirectory
 
 ## Installation
@@ -43,10 +43,25 @@ The configuration file is automatically created on first run in the `config/conf
   },
   "log": {
     "level": "info",
-    "format": "json"
+    "format": "json",
+    "file_path": "logs/webhook-forge.log",
+    "max_size": 100,
+    "max_backups": 5
   }
 }
 ```
+
+### Logging Configuration
+
+The logging system supports output to files with automatic rotation to prevent excessive disk usage:
+
+- `level`: Sets the minimum log level ("debug", "info", "warn", "error", "fatal")
+- `format`: Log format ("json" or "text")
+- `file_path`: Path to the log file (if omitted, logs go to stdout)
+- `max_size`: Maximum size of each log file in megabytes before rotation
+- `max_backups`: Maximum number of rotated log files to keep
+
+When log files reach the maximum size, they are automatically rotated, and old files are named with a numeric suffix (e.g., `webhook-forge.log.1`, `webhook-forge.log.2`). Once the number of backups exceeds `max_backups`, the oldest files are removed.
 
 ### Admin Token Generation
 
