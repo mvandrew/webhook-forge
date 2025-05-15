@@ -21,7 +21,13 @@ import (
 
 func main() {
 	// Load configuration
-	configPath := filepath.Join("config", "config.json")
+	// Check if CONFIG_PATH environment variable is set
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = filepath.Join("config", "config.json")
+	}
+	fmt.Printf("Loading configuration from: %s\n", configPath)
+
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
 		fmt.Printf("Error loading configuration: %s\n", err)
