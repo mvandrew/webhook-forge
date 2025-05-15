@@ -41,8 +41,8 @@ func LoadConfig(path string) (*Config, error) {
 		Server: ServerConfig{
 			Host:       "127.0.0.1",
 			Port:       8080,
-			BasePath:   "",            // Empty string means no base path (server at root)
-			AdminToken: "admin-token", // Default admin token, should be changed in production
+			BasePath:   "", // Empty string means no base path (server at root)
+			AdminToken: "", // Default admin token, should be changed in production
 		},
 		Hooks: HooksConfig{
 			StoragePath: "data/hooks.json",
