@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   webhook-forge:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: webhook-forge:${VERSION:-latest}
+    image: msav/webhook-forge:latest
     container_name: ${CONTAINER_NAME:-webhook-forge}
     restart: ${RESTART_POLICY:-unless-stopped}
     ports:
