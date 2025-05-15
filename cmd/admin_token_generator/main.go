@@ -13,15 +13,35 @@ import (
 )
 
 func main() {
-	// Initialize logger
-	log := logger.Default()
-
 	// Load configuration
 	configPath := filepath.Join("config", "config.json")
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		log.Fatal("Failed to load configuration", logger.Field{Key: "error", Value: err.Error()})
+		fmt.Printf("Error loading configuration: %s\n", err)
+		os.Exit(1)
 	}
+
+	// Initialize logger with file rotation
+	var log logger.Logger
+
+	if cfg != nil && cfg.Log.FilePath != "" {
+		logConfig := logger.LogConfig{
+			Level:      cfg.Log.Level,
+			Format:     cfg.Log.Format,
+			FilePath:   cfg.Log.FilePath,
+			MaxSize:    cfg.Log.MaxSize,
+			MaxBackups: cfg.Log.MaxBackups,
+		}
+
+		log, err = logger.NewWithConfig(logConfig)
+		if err != nil {
+			fmt.Printf("Error initializing logger: %s\n", err)
+			log = logger.Default() // Fallback to default logger
+		}
+	} else {
+		log = logger.Default()
+	}
+	defer log.Close()
 
 	// Create hook service to use for token generation
 	tokenGenerator := service.NewTokenGenerator(log)

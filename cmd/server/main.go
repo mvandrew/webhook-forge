@@ -26,8 +26,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create logger
-	log := logger.New(cfg.Log.Level, cfg.Log.Format, os.Stdout)
+	// Create logger with file rotation
+	logConfig := logger.LogConfig{
+		Level:      cfg.Log.Level,
+		Format:     cfg.Log.Format,
+		FilePath:   cfg.Log.FilePath,
+		MaxSize:    cfg.Log.MaxSize,
+		MaxBackups: cfg.Log.MaxBackups,
+	}
+
+	log, err := logger.NewWithConfig(logConfig)
+	if err != nil {
+		fmt.Printf("Error initializing logger: %s\n", err)
+		os.Exit(1)
+	}
+	defer log.Close()
+
 	log.Info("Starting webhook-forge server")
 
 	// Create hooks directory
