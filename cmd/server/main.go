@@ -98,9 +98,13 @@ func main() {
 	webhookRoutes := handler.GetWebhookRoutes()
 	webhookRoutesWithAuth := webhookAuth.Middleware(webhookRoutes)
 
+	// Set up health check route without authentication
+	healthHandler := handler.GetHealthHandler()
+
 	// Configure routes with proper base paths
 	apiPath := cfg.Server.BasePath + "/api"
 	webhookPath := cfg.Server.BasePath + "/webhook"
+	healthPath := cfg.Server.BasePath + "/health"
 
 	// Ensure paths are properly formatted
 	if apiPath != "" && !strings.HasPrefix(apiPath, "/") {
@@ -109,12 +113,17 @@ func main() {
 	if webhookPath != "" && !strings.HasPrefix(webhookPath, "/") {
 		webhookPath = "/" + webhookPath
 	}
+	if healthPath != "" && !strings.HasPrefix(healthPath, "/") {
+		healthPath = "/" + healthPath
+	}
 	apiPath = strings.TrimSuffix(apiPath, "/")
 	webhookPath = strings.TrimSuffix(webhookPath, "/")
+	healthPath = strings.TrimSuffix(healthPath, "/")
 
 	// Register routes with authentication middleware applied
 	mux.Handle(apiPath+"/", http.StripPrefix(apiPath, apiRoutesWithAuth))
 	mux.Handle(webhookPath+"/", http.StripPrefix(webhookPath, webhookRoutesWithAuth))
+	mux.Handle(healthPath+"/", http.StripPrefix(healthPath, healthHandler))
 
 	// Apply request logging middleware to all requests
 	middlewareChain := requestLogger.Middleware(mux)

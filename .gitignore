@@ -40,3 +40,4 @@ config/config.docker.json
 !/.gitignore
 !/.dockerignore
 !/.gitattributes
+!/.env.example

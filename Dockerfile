@@ -4,6 +4,9 @@ LABEL maintainer="Andrey Mishchenko <info@msav.ru>"
 
 WORKDIR /app
 
+# Install required dependencies for the build
+RUN apk add --no-cache curl
+
 # Copy only necessary files for go mod download to leverage Docker cache
 COPY go.mod go.sum* ./
 RUN go mod download
@@ -24,6 +27,9 @@ LABEL maintainer="Andrey Mishchenko <info@msav.ru>" \
     org.opencontainers.image.licenses="GPL-3.0"
 
 WORKDIR /app
+
+# Install curl for healthcheck
+RUN apk add --no-cache curl
 
 # Copy only the compiled binaries from the build stage
 COPY --from=builder /app/bin/webhook-forge /app/bin/webhook-forge
@@ -56,6 +62,10 @@ ENV SERVER_HOST="" \
 
 # Expose the server port
 EXPOSE 8099
+
+# Configure healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD PORT=${SERVER_PORT:-8099}; BASE_PATH=${SERVER_BASE_PATH:-""}; PATH_PREFIX=""; if [ -n "$BASE_PATH" ]; then PATH_PREFIX="/$BASE_PATH"; fi; curl -f "http://localhost:${PORT}${PATH_PREFIX}/health" || exit 1
 
 # Run the server by default
 CMD ["/app/bin/webhook-forge"]

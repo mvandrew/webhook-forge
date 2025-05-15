@@ -47,7 +47,17 @@ func (h *Handler) GetAPIRoutes() http.Handler {
 	apiMux.HandleFunc("PUT /hooks/{id}", h.updateHook)
 	apiMux.HandleFunc("DELETE /hooks/{id}", h.deleteHook)
 
+	// Health check endpoint - no authentication required
+	apiMux.HandleFunc("GET /health", h.healthCheck)
+
 	return apiMux
+}
+
+// GetHealthHandler returns a standalone health check handler without authentication
+func (h *Handler) GetHealthHandler() http.Handler {
+	healthMux := http.NewServeMux()
+	healthMux.HandleFunc("GET /", h.healthCheck)
+	return healthMux
 }
 
 // GetWebhookRoutes returns the webhook routes handler
