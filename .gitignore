@@ -21,6 +21,9 @@
 go.work
 go.work.sum
 
+# Data files
+data/
+
 # Configuration files
 config/config.json
 
