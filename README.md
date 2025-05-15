@@ -14,9 +14,15 @@ Webhook Forge is a lightweight server for receiving webhook requests and creatin
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/webhook-forge.git
+git clone git@github.com:mvandrew/webhook-forge.git
 cd webhook-forge
 go build -o webhook-forge ./cmd/server
+```
+
+Alternatively, you can use the provided Makefile:
+
+```bash
+make build
 ```
 
 ## Configuration
@@ -41,6 +47,16 @@ The configuration file is automatically created on first run in the `config/conf
   }
 }
 ```
+
+### Admin Token Generation
+
+For security reasons, you should generate a random admin token instead of using the default value. Use the provided admin token generator tool:
+
+```bash
+make token
+```
+
+This will generate a secure random token and ask for confirmation before saving it to your configuration file. If you already have a token in your configuration, you'll be shown both the current and new tokens before being asked to confirm the replacement.
 
 ### Reverse Proxy Configuration
 
@@ -134,6 +150,28 @@ When an operation is successful, the `success` field is `true` and the `data` fi
 ```bash
 ./webhook-forge
 ```
+
+Or using the Makefile:
+
+```bash
+make run-server
+```
+
+### Generating Admin Token
+
+To generate a secure admin token for your webhook-forge server:
+
+```bash
+./bin/admin-token-generator
+```
+
+Or using the Makefile:
+
+```bash
+make token
+```
+
+The tool will generate a new random token and ask for your confirmation before saving it to the configuration file.
 
 ### API Endpoints
 
@@ -233,6 +271,7 @@ After a successful invocation, the file will be created in the `data/flags/my-pr
 The project is organized according to clean architecture principles:
 
 - `cmd/server` - application entry point
+- `cmd/admin_token_generator` - utility for generating admin tokens
 - `internal/api` - HTTP handlers
 - `internal/config` - application configuration
 - `internal/domain` - data models and interfaces
