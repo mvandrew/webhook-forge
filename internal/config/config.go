@@ -30,8 +30,11 @@ type HooksConfig struct {
 
 // LogConfig contains logging configuration
 type LogConfig struct {
-	Level  string `json:"level"`
-	Format string `json:"format"`
+	Level      string `json:"level"`       // Log level (debug, info, warn, error, fatal)
+	Format     string `json:"format"`      // Log format (json, text)
+	FilePath   string `json:"file_path"`   // Path to log file (if empty, logs to stdout)
+	MaxSize    int64  `json:"max_size"`    // Maximum size of log file in MB before rotation
+	MaxBackups int    `json:"max_backups"` // Maximum number of old log files to retain
 }
 
 // LoadConfig loads configuration from file
@@ -49,8 +52,11 @@ func LoadConfig(path string) (*Config, error) {
 			FlagsDir:    "data/flags",
 		},
 		Log: LogConfig{
-			Level:  "info",
-			Format: "json",
+			Level:      "info",
+			Format:     "json",
+			FilePath:   "",  // Default to stdout
+			MaxSize:    100, // 100 MB
+			MaxBackups: 5,   // Keep 5 old log files
 		},
 	}
 
