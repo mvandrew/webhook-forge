@@ -32,6 +32,7 @@ bin/
 
 # Configuration files
 config/config.json
+config/config.docker.json
 
 # Ignore all hidden files and directories in root except .gitignore
 /.[!.]*
