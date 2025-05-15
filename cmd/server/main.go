@@ -51,7 +51,7 @@ func main() {
 	hookService := service.NewHookService(hookRepo, cfg.Hooks.FlagsDir, log)
 
 	// Create API handler
-	handler := api.NewHandler(hookService, log, cfg.Server.BasePath)
+	handler := api.NewHandler(hookService, log, cfg.Server.BasePath, cfg.Server.AdminToken)
 
 	// Create HTTP server
 	mux := http.NewServeMux()

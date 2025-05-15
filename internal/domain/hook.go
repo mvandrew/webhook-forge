@@ -42,4 +42,5 @@ type HookService interface {
 	DeleteHook(id string) error
 	ValidateHookToken(id string, token string) error
 	TriggerHook(id string, token string) error
+	GenerateToken() string
 }

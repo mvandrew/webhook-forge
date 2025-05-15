@@ -15,10 +15,11 @@ type Handler struct {
 	hookService domain.HookService
 	logger      logger.Logger
 	basePath    string
+	adminToken  string
 }
 
 // NewHandler creates a new handler
-func NewHandler(hookService domain.HookService, logger logger.Logger, basePath string) *Handler {
+func NewHandler(hookService domain.HookService, logger logger.Logger, basePath string, adminToken string) *Handler {
 	// Normalize base path: ensure it starts with '/' and doesn't end with '/'
 	if basePath != "" {
 		if !strings.HasPrefix(basePath, "/") {
@@ -31,6 +32,7 @@ func NewHandler(hookService domain.HookService, logger logger.Logger, basePath s
 		hookService: hookService,
 		logger:      logger,
 		basePath:    basePath,
+		adminToken:  adminToken,
 	}
 }
 
@@ -70,7 +72,7 @@ func (h *Handler) respondJSON(w http.ResponseWriter, status int, data interface{
 
 // respondError sends an error response
 func (h *Handler) respondError(w http.ResponseWriter, status int, message string) {
-	h.respondJSON(w, status, map[string]string{"error": message})
+	h.respondJSON(w, status, domain.NewErrorResponse(message))
 }
 
 // getHooks handles GET /api/hooks
@@ -82,7 +84,7 @@ func (h *Handler) getHooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondJSON(w, http.StatusOK, hooks)
+	h.respondJSON(w, http.StatusOK, domain.NewSuccessResponse(hooks))
 }
 
 // getHook handles GET /api/hooks/{id}
@@ -104,15 +106,34 @@ func (h *Handler) getHook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.respondJSON(w, http.StatusOK, hook)
+	h.respondJSON(w, http.StatusOK, domain.NewSuccessResponse(hook))
 }
 
 // createHook handles POST /api/hooks
 func (h *Handler) createHook(w http.ResponseWriter, r *http.Request) {
+	// Check admin token
+	adminToken := r.Header.Get("X-Admin-Token")
+	if adminToken == "" {
+		h.logger.Warn("Missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin token required")
+		return
+	}
+
+	if adminToken != h.adminToken {
+		h.logger.Warn("Invalid admin token")
+		h.respondError(w, http.StatusForbidden, "Invalid admin token")
+		return
+	}
+
 	var hook domain.Hook
 	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
 		h.respondError(w, http.StatusBadRequest, "Invalid request body")
 		return
+	}
+
+	// Generate token if not provided
+	if hook.Token == "" {
+		hook.Token = h.hookService.GenerateToken()
 	}
 
 	// Set timestamps
@@ -122,15 +143,29 @@ func (h *Handler) createHook(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.hookService.CreateHook(&hook); err != nil {
 		h.logger.Error("Failed to create hook", logger.Field{Key: "error", Value: err.Error()})
-		h.respondError(w, http.StatusInternalServerError, "Failed to create hook")
+		h.respondError(w, http.StatusInternalServerError, "Failed to create hook: "+err.Error())
 		return
 	}
 
-	h.respondJSON(w, http.StatusCreated, hook)
+	h.respondJSON(w, http.StatusCreated, domain.NewSuccessResponse(hook))
 }
 
 // updateHook handles PUT /api/hooks/{id}
 func (h *Handler) updateHook(w http.ResponseWriter, r *http.Request) {
+	// Check admin token
+	adminToken := r.Header.Get("X-Admin-Token")
+	if adminToken == "" {
+		h.logger.Warn("Missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin token required")
+		return
+	}
+
+	if adminToken != h.adminToken {
+		h.logger.Warn("Invalid admin token")
+		h.respondError(w, http.StatusForbidden, "Invalid admin token")
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
 		h.respondError(w, http.StatusBadRequest, "Missing hook ID")
@@ -146,21 +181,38 @@ func (h *Handler) updateHook(w http.ResponseWriter, r *http.Request) {
 	// Ensure ID matches path parameter
 	hook.ID = id
 
+	// Set update timestamp
+	hook.UpdatedAt = time.Now()
+
 	if err := h.hookService.UpdateHook(&hook); err != nil {
 		if err == domain.ErrHookNotFound {
 			h.respondError(w, http.StatusNotFound, "Hook not found")
 			return
 		}
 		h.logger.Error("Failed to update hook", logger.Field{Key: "id", Value: id}, logger.Field{Key: "error", Value: err.Error()})
-		h.respondError(w, http.StatusInternalServerError, "Failed to update hook")
+		h.respondError(w, http.StatusInternalServerError, "Failed to update hook: "+err.Error())
 		return
 	}
 
-	h.respondJSON(w, http.StatusOK, hook)
+	h.respondJSON(w, http.StatusOK, domain.NewSuccessResponse(hook))
 }
 
 // deleteHook handles DELETE /api/hooks/{id}
 func (h *Handler) deleteHook(w http.ResponseWriter, r *http.Request) {
+	// Check admin token
+	adminToken := r.Header.Get("X-Admin-Token")
+	if adminToken == "" {
+		h.logger.Warn("Missing admin token")
+		h.respondError(w, http.StatusForbidden, "Admin token required")
+		return
+	}
+
+	if adminToken != h.adminToken {
+		h.logger.Warn("Invalid admin token")
+		h.respondError(w, http.StatusForbidden, "Invalid admin token")
+		return
+	}
+
 	id := r.PathValue("id")
 	if id == "" {
 		h.respondError(w, http.StatusBadRequest, "Missing hook ID")
@@ -173,11 +225,11 @@ func (h *Handler) deleteHook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.logger.Error("Failed to delete hook", logger.Field{Key: "id", Value: id}, logger.Field{Key: "error", Value: err.Error()})
-		h.respondError(w, http.StatusInternalServerError, "Failed to delete hook")
+		h.respondError(w, http.StatusInternalServerError, "Failed to delete hook: "+err.Error())
 		return
 	}
 
-	h.respondJSON(w, http.StatusNoContent, nil)
+	h.respondJSON(w, http.StatusNoContent, domain.NewSuccessResponse(nil))
 }
 
 // triggerHook handles POST /webhook/{id}
@@ -206,9 +258,9 @@ func (h *Handler) triggerHook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.logger.Error("Failed to trigger hook", logger.Field{Key: "id", Value: id}, logger.Field{Key: "error", Value: err.Error()})
-		h.respondError(w, http.StatusInternalServerError, "Failed to trigger hook")
+		h.respondError(w, http.StatusInternalServerError, "Failed to trigger hook: "+err.Error())
 		return
 	}
 
-	h.respondJSON(w, http.StatusOK, map[string]string{"status": "success"})
+	h.respondJSON(w, http.StatusOK, domain.NewSuccessResponse(map[string]string{"status": "success"}))
 }

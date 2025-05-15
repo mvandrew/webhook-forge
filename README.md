@@ -28,7 +28,8 @@ The configuration file is automatically created on first run in the `config/conf
   "server": {
     "host": "127.0.0.1",
     "port": 8080,
-    "base_path": ""
+    "base_path": "",
+    "admin_token": "admin-token"
   },
   "hooks": {
     "storage_path": "data/hooks.json",
@@ -74,6 +75,20 @@ server {
 }
 ```
 
+### API Response Format
+
+All API responses follow a consistent format:
+
+```json
+{
+  "success": true|false,
+  "data": {/* returned data object */},
+  "errors": ["error message 1", "error message 2"]
+}
+```
+
+When an operation is successful, the `success` field is `true` and the `data` field contains the result. When an error occurs, `success` is `false` and the `errors` field contains error messages.
+
 ## Usage
 
 ### Starting the Server
@@ -100,11 +115,12 @@ For a server running at the root:
 ```bash
 curl -X POST http://localhost:8080/api/hooks \
   -H "Content-Type: application/json" \
+  -H "X-Admin-Token: admin-token" \
   -d '{
     "id": "my-webhook",
     "name": "My Webhook",
     "description": "Webhook for my project",
-    "token": "your-secret-token",
+    "token": "your-secret-token",  # Optional, will be generated automatically if not provided
     "flag_file": "my-project/flag.txt",
     "enabled": true
   }'
@@ -114,15 +130,51 @@ For a server with `base_path` set to `/hooks`:
 ```bash
 curl -X POST http://localhost:8080/hooks/api/hooks \
   -H "Content-Type: application/json" \
+  -H "X-Admin-Token: admin-token" \
   -d '{
+    "id": "my-webhook",
+    "name": "My Webhook",
+    "description": "Webhook for my project",
+    "token": "your-secret-token",  # Optional, will be generated automatically if not provided
+    "flag_file": "my-project/flag.txt",
+    "enabled": true
+  }'
+```
+
+The response will contain the created webhook, including the generated token if one wasn't provided:
+
+```json
+{
+  "success": true,
+  "data": {
     "id": "my-webhook",
     "name": "My Webhook",
     "description": "Webhook for my project",
     "token": "your-secret-token",
     "flag_file": "my-project/flag.txt",
-    "enabled": true
-  }'
+    "enabled": true,
+    "created_at": "2023-04-18T12:34:56Z",
+    "updated_at": "2023-04-18T12:34:56Z"
+  }
+}
 ```
+
+#### Admin Token Authentication
+
+All management endpoints (`POST`, `PUT`, `DELETE`) require the `X-Admin-Token` header for authentication. The token must match the value defined in the server configuration.
+
+If the token is missing or invalid, the API will return a `403 Forbidden` response:
+
+```json
+{
+  "success": false,
+  "errors": ["Admin token required"]
+}
+```
+
+#### Automatic Token Generation
+
+When creating a new webhook, if you don't specify a token, the system will automatically generate a secure token for you. This generated token will be returned in the response. Make sure to save it, as it will be needed to trigger the webhook.
 
 #### Invoking a Webhook
 

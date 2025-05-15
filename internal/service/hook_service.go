@@ -1,7 +1,9 @@
 package service
 
 import (
+	"crypto/rand"
 	"crypto/subtle"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -146,6 +148,26 @@ func (s *HookService) TriggerHook(id string, token string) error {
 	return nil
 }
 
+// GenerateToken generates a random token using current time and random bytes
+func (s *HookService) GenerateToken() string {
+	// Get current time as part of the token generation
+	timestamp := time.Now().UnixNano()
+
+	// Create a random component (16 bytes = 32 hex chars)
+	randomBytes := make([]byte, 16)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		// If there's an error reading random, fallback to less random but still useful method
+		s.logger.Error("Failed to generate random bytes for token", logger.Field{Key: "error", Value: err.Error()})
+		randomBytes = []byte(fmt.Sprintf("%016x", timestamp))
+	}
+
+	// Combine timestamp and random component
+	token := fmt.Sprintf("%x-%s", timestamp, hex.EncodeToString(randomBytes))
+
+	return token
+}
+
 // validateHook validates a hook configuration
 func (s *HookService) validateHook(hook *domain.Hook) error {
 	// Check required fields
@@ -155,9 +177,7 @@ func (s *HookService) validateHook(hook *domain.Hook) error {
 	if hook.Name == "" {
 		return fmt.Errorf("hook name is required")
 	}
-	if hook.Token == "" {
-		return fmt.Errorf("hook token is required")
-	}
+	// Token validation is handled by the handler now
 	if hook.FlagFile == "" {
 		return fmt.Errorf("hook flag file is required")
 	}
