@@ -1,0 +1,193 @@
+package api
+
+import (
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"webhook-forge/internal/domain"
+	"webhook-forge/pkg/logger"
+)
+
+// Handler handles HTTP requests
+type Handler struct {
+	hookService domain.HookService
+	logger      logger.Logger
+}
+
+// NewHandler creates a new handler
+func NewHandler(hookService domain.HookService, logger logger.Logger) *Handler {
+	return &Handler{
+		hookService: hookService,
+		logger:      logger,
+	}
+}
+
+// RegisterRoutes registers the API routes
+func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
+	// API routes
+	mux.HandleFunc("GET /api/hooks", h.getHooks)
+	mux.HandleFunc("GET /api/hooks/{id}", h.getHook)
+	mux.HandleFunc("POST /api/hooks", h.createHook)
+	mux.HandleFunc("PUT /api/hooks/{id}", h.updateHook)
+	mux.HandleFunc("DELETE /api/hooks/{id}", h.deleteHook)
+
+	// Webhook route
+	mux.HandleFunc("POST /webhook/{id}", h.triggerHook)
+}
+
+// respondJSON sends a JSON response
+func (h *Handler) respondJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if data != nil {
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			h.logger.Error("Failed to encode response", logger.Field{Key: "error", Value: err.Error()})
+		}
+	}
+}
+
+// respondError sends an error response
+func (h *Handler) respondError(w http.ResponseWriter, status int, message string) {
+	h.respondJSON(w, status, map[string]string{"error": message})
+}
+
+// getHooks handles GET /api/hooks
+func (h *Handler) getHooks(w http.ResponseWriter, r *http.Request) {
+	hooks, err := h.hookService.GetAllHooks()
+	if err != nil {
+		h.logger.Error("Failed to get hooks", logger.Field{Key: "error", Value: err.Error()})
+		h.respondError(w, http.StatusInternalServerError, "Failed to get hooks")
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, hooks)
+}
+
+// getHook handles GET /api/hooks/{id}
+func (h *Handler) getHook(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		h.respondError(w, http.StatusBadRequest, "Missing hook ID")
+		return
+	}
+
+	hook, err := h.hookService.GetHook(id)
+	if err != nil {
+		if err == domain.ErrHookNotFound {
+			h.respondError(w, http.StatusNotFound, "Hook not found")
+			return
+		}
+		h.logger.Error("Failed to get hook", logger.Field{Key: "id", Value: id}, logger.Field{Key: "error", Value: err.Error()})
+		h.respondError(w, http.StatusInternalServerError, "Failed to get hook")
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, hook)
+}
+
+// createHook handles POST /api/hooks
+func (h *Handler) createHook(w http.ResponseWriter, r *http.Request) {
+	var hook domain.Hook
+	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Set timestamps
+	now := time.Now()
+	hook.CreatedAt = now
+	hook.UpdatedAt = now
+
+	if err := h.hookService.CreateHook(&hook); err != nil {
+		h.logger.Error("Failed to create hook", logger.Field{Key: "error", Value: err.Error()})
+		h.respondError(w, http.StatusInternalServerError, "Failed to create hook")
+		return
+	}
+
+	h.respondJSON(w, http.StatusCreated, hook)
+}
+
+// updateHook handles PUT /api/hooks/{id}
+func (h *Handler) updateHook(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		h.respondError(w, http.StatusBadRequest, "Missing hook ID")
+		return
+	}
+
+	var hook domain.Hook
+	if err := json.NewDecoder(r.Body).Decode(&hook); err != nil {
+		h.respondError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Ensure ID matches path parameter
+	hook.ID = id
+
+	if err := h.hookService.UpdateHook(&hook); err != nil {
+		if err == domain.ErrHookNotFound {
+			h.respondError(w, http.StatusNotFound, "Hook not found")
+			return
+		}
+		h.logger.Error("Failed to update hook", logger.Field{Key: "id", Value: id}, logger.Field{Key: "error", Value: err.Error()})
+		h.respondError(w, http.StatusInternalServerError, "Failed to update hook")
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, hook)
+}
+
+// deleteHook handles DELETE /api/hooks/{id}
+func (h *Handler) deleteHook(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		h.respondError(w, http.StatusBadRequest, "Missing hook ID")
+		return
+	}
+
+	if err := h.hookService.DeleteHook(id); err != nil {
+		if err == domain.ErrHookNotFound {
+			h.respondError(w, http.StatusNotFound, "Hook not found")
+			return
+		}
+		h.logger.Error("Failed to delete hook", logger.Field{Key: "id", Value: id}, logger.Field{Key: "error", Value: err.Error()})
+		h.respondError(w, http.StatusInternalServerError, "Failed to delete hook")
+		return
+	}
+
+	h.respondJSON(w, http.StatusNoContent, nil)
+}
+
+// triggerHook handles POST /webhook/{id}
+func (h *Handler) triggerHook(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		h.respondError(w, http.StatusBadRequest, "Missing hook ID")
+		return
+	}
+
+	// Get token from query parameter
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		h.respondError(w, http.StatusBadRequest, "Missing token parameter")
+		return
+	}
+
+	// Trigger hook
+	if err := h.hookService.TriggerHook(id, token); err != nil {
+		if err == domain.ErrHookNotFound {
+			h.respondError(w, http.StatusNotFound, "Hook not found")
+			return
+		}
+		if err == domain.ErrInvalidToken {
+			h.respondError(w, http.StatusUnauthorized, "Invalid token")
+			return
+		}
+		h.logger.Error("Failed to trigger hook", logger.Field{Key: "id", Value: id}, logger.Field{Key: "error", Value: err.Error()})
+		h.respondError(w, http.StatusInternalServerError, "Failed to trigger hook")
+		return
+	}
+
+	h.respondJSON(w, http.StatusOK, map[string]string{"status": "success"})
+}
