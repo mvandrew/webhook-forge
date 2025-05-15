@@ -27,6 +27,9 @@ data/
 # Logs files
 logs/
 
+# Binaries
+bin/
+
 # Configuration files
 config/config.json
 
