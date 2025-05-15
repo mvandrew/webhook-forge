@@ -31,3 +31,40 @@ Webhook Forge is a lightweight, versatile webhook receiver designed to bridge we
 ## Getting Started
 
 _Coming soon: Installation and configuration instructions_
+
+## Project Structure
+
+The project follows a clean architecture approach with clear separation of concerns:
+
+```
+webhook-forge/
+├── cmd/                  # Application entry points
+│   └── server/           # Main server application
+├── config/               # Configuration files and templates
+├── docs/                 # Documentation files
+├── internal/             # Private application code
+│   ├── api/              # API route definitions and input/output models
+│   ├── config/           # Configuration loading and parsing
+│   ├── handler/          # HTTP handlers for webhooks
+│   ├── middleware/       # HTTP middleware components
+│   ├── model/            # Domain models and entities
+│   ├── service/          # Business logic implementation
+│   └── storage/          # Data storage and retrieval
+├── pkg/                  # Public libraries that can be used by external applications
+│   ├── flag/             # Flag file creation utilities
+│   ├── logger/           # Logging utilities
+│   └── validator/        # Request validation utilities
+├── scripts/              # Utility scripts for development, CI/CD, etc.
+├── test/                 # Test related files
+│   ├── integration/      # Integration tests
+│   ├── mock/             # Mock implementations for testing
+│   └── unit/             # Unit tests
+├── .dockerignore         # Files to exclude from Docker build
+├── .gitattributes        # Git attributes file
+├── .gitignore            # Git ignore file
+├── Dockerfile            # Docker build instructions
+├── go.mod                # Go module definition
+├── LICENSE               # License file
+├── Makefile              # Make targets for common tasks
+└── README.md             # Project documentation
+```
