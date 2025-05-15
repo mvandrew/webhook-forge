@@ -9,6 +9,7 @@ Webhook Forge is a lightweight server for receiving webhook requests and creatin
 - Creation of flag files upon successful webhook invocation
 - Easy configuration via JSON file
 - Structured logging
+- Support for deployment behind a reverse proxy in a subdirectory
 
 ## Installation
 
@@ -26,7 +27,8 @@ The configuration file is automatically created on first run in the `config/conf
 {
   "server": {
     "host": "127.0.0.1",
-    "port": 8080
+    "port": 8080,
+    "base_path": ""
   },
   "hooks": {
     "storage_path": "data/hooks.json",
@@ -36,6 +38,39 @@ The configuration file is automatically created on first run in the `config/conf
     "level": "info",
     "format": "json"
   }
+}
+```
+
+### Reverse Proxy Configuration
+
+If you're running the webhook-forge server behind a reverse proxy (like Nginx) at a subdirectory, you can use the `base_path` setting:
+
+```json
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 8080,
+    "base_path": "/hooks"
+  }
+}
+```
+
+This will make all routes available at `/hooks/*` (e.g., `/hooks/api/hooks`, `/hooks/webhook/my-hook`), which can then be properly proxied.
+
+#### Example Nginx Configuration
+
+```nginx
+server {
+    listen 80;
+    server_name example.com;
+
+    location /hooks/ {
+        proxy_pass http://127.0.0.1:8080/hooks/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 ```
 
@@ -57,8 +92,11 @@ The configuration file is automatically created on first run in the `config/conf
 - `PUT /api/hooks/{id}` - update an existing webhook
 - `DELETE /api/hooks/{id}` - delete a webhook
 
+Note: If you've configured `base_path`, prepend it to these endpoints (e.g., `/hooks/api/hooks`).
+
 #### Example of Creating a Webhook
 
+For a server running at the root:
 ```bash
 curl -X POST http://localhost:8080/api/hooks \
   -H "Content-Type: application/json" \
@@ -72,10 +110,30 @@ curl -X POST http://localhost:8080/api/hooks \
   }'
 ```
 
+For a server with `base_path` set to `/hooks`:
+```bash
+curl -X POST http://localhost:8080/hooks/api/hooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-webhook",
+    "name": "My Webhook",
+    "description": "Webhook for my project",
+    "token": "your-secret-token",
+    "flag_file": "my-project/flag.txt",
+    "enabled": true
+  }'
+```
+
 #### Invoking a Webhook
 
+For a server running at the root:
 ```bash
 curl -X POST "http://localhost:8080/webhook/my-webhook?token=your-secret-token"
+```
+
+For a server with `base_path` set to `/hooks`:
+```bash
+curl -X POST "http://localhost:8080/hooks/webhook/my-webhook?token=your-secret-token"
 ```
 
 After a successful invocation, the file will be created in the `data/flags/my-project/flag.txt` directory.
@@ -96,3 +154,13 @@ The project is organized according to clean architecture principles:
 ## License
 
 GNU General Public License v3.0
+
+## Configuration Example
+
+To set up the application, create your own configuration file based on the example:
+
+```bash
+cp config/config.example.json config/config.json
+```
+
+Then edit the `config/config.json` file according to your requirements. The example configuration file is tracked in git, while your local configuration file is ignored.
