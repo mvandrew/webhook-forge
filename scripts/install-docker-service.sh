@@ -5,11 +5,63 @@ set -e
 # Install webhook-forge docker service as a systemd service
 # This script must be run with root privileges
 
-# Default settings (can be overridden by environment variables)
-SERVICE_NAME=${SERVICE_NAME:-"webhook-forge-docker"}
-INSTALL_DIR=${INSTALL_DIR:-$(pwd)}
-DOCKER_COMPOSE_FILE=${DOCKER_COMPOSE_FILE:-"$INSTALL_DIR/docker-compose.prod.yml"}
-USER=${USER:-$(id -un)}
+# Default settings
+SERVICE_NAME="webhook-forge-docker"
+INSTALL_DIR=$(pwd)
+DOCKER_COMPOSE_FILE=""
+SERVICE_USER=$(id -un)
+
+# Print usage information
+function print_usage {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Install webhook-forge docker service as a systemd service"
+  echo
+  echo "Options:"
+  echo "  -h, --help                 Show this help message"
+  echo "  -n, --name NAME            Service name (default: webhook-forge-docker)"
+  echo "  -d, --dir DIRECTORY        Installation directory (default: current directory)"
+  echo "  -f, --file FILE            Path to docker-compose file (default: INSTALL_DIR/docker-compose.prod.yml)"
+  echo "  -u, --user USER            User to run the service as (default: current user)"
+  echo
+  echo "Example:"
+  echo "  $0 --name my-webhook-docker --file /opt/webhook-forge/docker-compose.yml"
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    -n|--name)
+      SERVICE_NAME="$2"
+      shift 2
+      ;;
+    -d|--dir)
+      INSTALL_DIR="$2"
+      shift 2
+      ;;
+    -f|--file)
+      DOCKER_COMPOSE_FILE="$2"
+      shift 2
+      ;;
+    -u|--user)
+      SERVICE_USER="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      print_usage
+      exit 1
+      ;;
+  esac
+done
+
+# Set default for docker compose file if not provided
+if [ -z "$DOCKER_COMPOSE_FILE" ]; then
+  DOCKER_COMPOSE_FILE="$INSTALL_DIR/docker-compose.prod.yml"
+fi
 
 # Check if the script is running with sudo
 if [ "$EUID" -ne 0 ]; then
@@ -21,7 +73,7 @@ echo "Installing webhook-forge docker service as a systemd service..."
 echo "Service name: $SERVICE_NAME"
 echo "Installation directory: $INSTALL_DIR"
 echo "Docker compose file: $DOCKER_COMPOSE_FILE"
-echo "User: $USER"
+echo "User: $SERVICE_USER"
 
 # Check if docker-compose file exists
 if [ ! -f "$DOCKER_COMPOSE_FILE" ]; then
@@ -54,7 +106,7 @@ RemainAfterExit=yes
 WorkingDirectory=$INSTALL_DIR
 ExecStart=/usr/bin/docker-compose -f $DOCKER_COMPOSE_FILE up -d
 ExecStop=/usr/bin/docker-compose -f $DOCKER_COMPOSE_FILE down
-User=$USER
+User=$SERVICE_USER
 
 [Install]
 WantedBy=multi-user.target

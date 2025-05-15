@@ -5,8 +5,40 @@ set -e
 # Uninstall webhook-forge systemd service
 # This script must be run with root privileges
 
-# Default service name (can be overridden by environment variable)
-SERVICE_NAME=${SERVICE_NAME:-"webhook-forge"}
+# Default service name
+SERVICE_NAME="webhook-forge"
+
+# Print usage information
+function print_usage {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Uninstall webhook-forge systemd service"
+  echo
+  echo "Options:"
+  echo "  -h, --help           Show this help message"
+  echo "  -n, --name NAME      Service name to uninstall (default: webhook-forge)"
+  echo
+  echo "Example:"
+  echo "  $0 --name my-webhook"
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    -n|--name)
+      SERVICE_NAME="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      print_usage
+      exit 1
+      ;;
+  esac
+done
 
 # Check if the script is running with sudo
 if [ "$EUID" -ne 0 ]; then

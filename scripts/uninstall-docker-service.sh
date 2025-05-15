@@ -5,8 +5,40 @@ set -e
 # Uninstall webhook-forge docker systemd service
 # This script must be run with root privileges
 
-# Default service name (can be overridden by environment variable)
-SERVICE_NAME=${SERVICE_NAME:-"webhook-forge-docker"}
+# Default service name
+SERVICE_NAME="webhook-forge-docker"
+
+# Print usage information
+function print_usage {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Uninstall webhook-forge docker systemd service"
+  echo
+  echo "Options:"
+  echo "  -h, --help           Show this help message"
+  echo "  -n, --name NAME      Service name to uninstall (default: webhook-forge-docker)"
+  echo
+  echo "Example:"
+  echo "  $0 --name my-webhook-docker"
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    -n|--name)
+      SERVICE_NAME="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      print_usage
+      exit 1
+      ;;
+  esac
+done
 
 # Check if the script is running with sudo
 if [ "$EUID" -ne 0 ]; then
