@@ -13,7 +13,6 @@ import (
 
 	"webhook-forge/internal/api"
 	"webhook-forge/internal/config"
-	"webhook-forge/internal/domain"
 	"webhook-forge/internal/middleware"
 	"webhook-forge/internal/service"
 	"webhook-forge/internal/storage"
